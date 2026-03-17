@@ -87,8 +87,6 @@ export const QuizScreen = () => {
         mode={session.mode}
         selectedAnswer={session.answers[currentIndex]}
         onSelectAnswer={(optIdx) => session.setAnswer(currentIndex, optIdx)}
-        confidence={session.confidence[currentIndex]}
-        onSetConfidence={(conf) => session.setConfidence(currentIndex, conf)}
         isFlagged={session.flagged[currentIndex]}
         onToggleFlag={() => session.toggleFlag(currentIndex)}
       />

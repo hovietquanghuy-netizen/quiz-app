@@ -12,11 +12,9 @@ interface SessionState extends Session {
     deckId: string, 
     questions: Question[], 
     config: { mode: 'exam' | 'review', shuffleQuestions: boolean, shuffleOptions: boolean, timeLimit?: number | null },
-    initialAnswers?: (number | null)[],
-    initialConfidence?: ('sure' | 'guess' | null)[]
+    initialAnswers?: (number | null)[]
   ) => void;
   setAnswer: (index: number, answerIndex: number | null) => void;
-  setConfidence: (index: number, conf: 'sure' | 'guess' | null) => void;
   toggleFlag: (index: number) => void;
   clearSession: () => void;
 }
@@ -25,7 +23,6 @@ const initialState = {
   deckId: '',
   questions: [],
   answers: [],
-  confidence: [],
   flagged: [],
   startedAt: 0,
   timeLimit: null,
@@ -41,11 +38,16 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
       ...initialState,
-      startSession: (deckId, questions, config, initialAnswers, initialConfidence) => {
+      startSession: (deckId, questions, config, initialAnswers) => {
         let qsToUse = [...questions];
         
         if (config.shuffleQuestions) {
           qsToUse.sort(() => Math.random() - 0.5);
+          // Tự động xóa Số thứ tự/chữ "Câu X:" ở đầu câu hỏi nếu đang xáo trộn
+          qsToUse = qsToUse.map(q => ({
+             ...q,
+             text: q.text.replace(/^(Câu\s*\d+[\.\:\-\)]\s*|\d+[\.\:\-\)]\s*)/i, '').trim()
+          }));
         }
 
         if (config.shuffleOptions) {
@@ -68,7 +70,6 @@ export const useSessionStore = create<SessionState>()(
           deckId,
           questions: qsToUse,
           answers: initialAnswers ? [...initialAnswers] : new Array(qsToUse.length).fill(null),
-          confidence: initialConfidence ? [...initialConfidence] : new Array(qsToUse.length).fill(null),
           flagged: new Array(qsToUse.length).fill(false),
           startedAt: Date.now(),
           timeLimit: config.timeLimit || null,
@@ -84,11 +85,6 @@ export const useSessionStore = create<SessionState>()(
         const newAnswers = [...state.answers];
         newAnswers[index] = answerIndex;
         return { answers: newAnswers };
-      }),
-      setConfidence: (index, conf) => set((state) => {
-        const newConfidence = [...state.confidence];
-        newConfidence[index] = conf;
-        return { confidence: newConfidence };
       }),
       toggleFlag: (index) => set((state) => {
         const newFlagged = [...state.flagged];

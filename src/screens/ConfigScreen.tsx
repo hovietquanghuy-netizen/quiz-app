@@ -13,7 +13,10 @@ export const ConfigScreen = () => {
   const [mode, setMode] = useState<'exam' | 'review'>('exam');
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
   const [shuffleOptions, setShuffleOptions] = useState(true);
-  const [timeLimit, setTimeLimit] = useState<number | ''>(15);
+  
+  // Smart timing: 30 seconds per question, convert to minutes and ceil
+  const calculateSmartTime = () => Math.ceil((deck?.questions.length || 0) * 30 / 60);
+  const [timeLimit, setTimeLimit] = useState<number | ''>(calculateSmartTime());
 
   if (!deck) {
     return (
@@ -83,16 +86,24 @@ export const ConfigScreen = () => {
           {/* Time Limit */}
           {mode === 'exam' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                <Clock className="w-4 h-4" /> Thời gian (phút)
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                   <Clock className="w-4 h-4" /> Thời gian (phút)
+                 </label>
+                 <button 
+                   onClick={() => setTimeLimit(calculateSmartTime())}
+                   className="text-xs font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 px-2 py-1 rounded hover:bg-primary-100 transition-colors"
+                 >
+                   Gợi ý tự động (30s/câu)
+                 </button>
+              </div>
               <input
                 type="number"
                 min="0"
                 value={timeLimit}
                 onChange={(e) => setTimeLimit(e.target.value ? Number(e.target.value) : '')}
                 placeholder="Để trống nếu không giới hạn"
-                className="w-full sm:w-1/2 p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+                className="w-full sm:w-1/2 p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none block"
               />
             </div>
           )}

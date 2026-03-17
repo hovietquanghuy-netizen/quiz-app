@@ -7,8 +7,6 @@ interface QuestionCardProps {
   mode: 'exam' | 'review';
   selectedAnswer: number | null;
   onSelectAnswer: (index: number) => void;
-  confidence: 'sure' | 'guess' | null;
-  onSetConfidence: (conf: 'sure' | 'guess') => void;
   isFlagged: boolean;
   onToggleFlag: () => void;
 }
@@ -20,8 +18,6 @@ export const QuestionCard = ({
   mode,
   selectedAnswer,
   onSelectAnswer,
-  confidence,
-  onSetConfidence,
   isFlagged,
   onToggleFlag
 }: QuestionCardProps) => {
@@ -79,13 +75,7 @@ export const QuestionCard = ({
                     )}
                     {idx === selectedAnswer && idx !== question.correctIndex && (
                       <span className="text-xs font-bold text-red-700 bg-red-200 dark:text-red-300 dark:bg-red-900/60 px-2.5 py-1 rounded-md">
-                        ✗ Lựa chọn của bạn {confidence === 'guess' && '(Đoán)'}
-                      </span>
-                    )}
-                    {/* Trường hợp đoán mò mà trúng mâm */}
-                    {idx === selectedAnswer && idx === question.correctIndex && confidence === 'guess' && (
-                      <span className="text-xs font-bold text-orange-700 bg-orange-200 dark:text-orange-300 dark:bg-orange-900/60 px-2.5 py-1 rounded-md">
-                         Lựa chọn của bạn (Đoán đại)
+                        ✗ Lựa chọn của bạn
                       </span>
                     )}
                   </div>
@@ -94,26 +84,6 @@ export const QuestionCard = ({
             </button>
           ))}
         </div>
-        
-        {selectedAnswer !== null && mode === 'exam' && (
-           <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
-             <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 text-center">Mức độ tự tin với câu trả lời:</div>
-             <div className="flex gap-4 justify-center">
-               <button 
-                 onClick={() => onSetConfidence('guess')}
-                 className={`px-6 py-2 rounded-full text-sm font-medium border-2 transition-colors ${confidence === 'guess' ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20' : 'border-gray-200 text-gray-500 hover:border-orange-300 dark:border-gray-600 dark:hover:border-orange-500'}`}
-               >
-                 Phỏng đoán
-               </button>
-               <button 
-                 onClick={() => onSetConfidence('sure')}
-                 className={`px-6 py-2 rounded-full text-sm font-medium border-2 transition-colors ${confidence === 'sure' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20' : 'border-gray-200 text-gray-500 hover:border-green-300 dark:border-gray-600 dark:hover:border-green-500'}`}
-               >
-                 Chắc chắn
-               </button>
-             </div>
-           </div>
-        )}
       </div>
     </div>
   );

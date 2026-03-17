@@ -20,7 +20,7 @@ export const ResultsScreen = () => {
     }
 
     if (!hasSaved && session.mode === 'exam') {
-      const { score, total, wrongIds } = calculateScore(session.questions, session.answers, session.confidence);
+      const { score, total, wrongIds } = calculateScore(session.questions, session.answers);
       const timeTaken = Math.floor((Date.now() - session.startedAt) / 1000); // seconds
       const deckName = decks.find(d => d.id === session.deckId)?.name || 'Bài thi không tên';
 
@@ -40,7 +40,7 @@ export const ResultsScreen = () => {
 
   if (!session.isConfigured || session.questions.length === 0) return null;
 
-  const { score, total, wrongIds } = calculateScore(session.questions, session.answers, session.confidence);
+  const { score, total, wrongIds } = calculateScore(session.questions, session.answers);
   const correctPercent = Math.round((score / total) * 100) || 0;
   
   let timeStr = '--:--';
@@ -103,13 +103,11 @@ export const ResultsScreen = () => {
                if (deck) {
                  const wrongQs: typeof session.questions = [];
                  const wrongAns: typeof session.answers = [];
-                 const wrongConf: typeof session.confidence = [];
 
                  session.questions.forEach((q, idx) => {
                    if (wrongIds.includes(q.id)) {
                       wrongQs.push(q);
                       wrongAns.push(session.answers[idx]);
-                      wrongConf.push(session.confidence[idx]);
                    }
                  });
 
@@ -119,7 +117,7 @@ export const ResultsScreen = () => {
                    shuffleQuestions: false,
                    shuffleOptions: false,
                    timeLimit: null
-                 }, wrongAns, wrongConf);
+                 }, wrongAns);
                  navigate('/quiz');
                }
              }}

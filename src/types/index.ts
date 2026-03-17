@@ -16,7 +16,6 @@ export interface Session {
   deckId: string;
   questions: Question[];
   answers: (number | null)[];
-  confidence: ('sure' | 'guess' | null)[];
   flagged: boolean[];
   startedAt: number;
   timeLimit: number | null;
