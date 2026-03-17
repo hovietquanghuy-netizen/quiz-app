@@ -23,7 +23,7 @@ export const QuestionCard = ({
 }: QuestionCardProps) => {
 
   const getOptionClass = (index: number) => {
-    if (mode === 'review') {
+    if (mode === 'review' && selectedAnswer !== null) {
       if (index === question.correctIndex) return 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400';
       if (index === selectedAnswer && index !== question.correctIndex) return 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400';
     }
@@ -66,7 +66,7 @@ export const QuestionCard = ({
                 </div>
                 
                 {/* Labels for Review mode */}
-                {mode === 'review' && (
+                {mode === 'review' && selectedAnswer !== null && (
                   <div className="ml-0 sm:ml-auto mt-2 sm:mt-0 flex gap-2 flex-wrap">
                     {idx === question.correctIndex && (
                       <span className="text-xs font-bold text-green-700 bg-green-200 dark:text-green-300 dark:bg-green-900/60 px-2.5 py-1 rounded-md">
@@ -84,6 +84,16 @@ export const QuestionCard = ({
             </button>
           ))}
         </div>
+        
+        {mode === 'review' && selectedAnswer !== null && (
+           <div className={`mt-6 p-5 rounded-2xl border-2 flex items-center gap-4 transition-all ${selectedAnswer === question.correctIndex ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800/50 dark:text-green-400' : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800/50 dark:text-red-400'}`}>
+             <span className="text-3xl">{selectedAnswer === question.correctIndex ? '🎉' : '💡'}</span>
+             <div>
+               <p className="font-bold text-lg mb-0.5">{selectedAnswer === question.correctIndex ? 'Chính xác!' : 'Chưa chính xác!'}</p>
+               <p className="text-sm opacity-90">{selectedAnswer === question.correctIndex ? 'Tuyệt vời, bạn có trí nhớ rất tốt ở câu hỏi này.' : `Đừng buồn, hãy ghi nhớ thật kỹ lại đáp án đúng phía trên nhé.`}</p>
+             </div>
+           </div>
+        )}
       </div>
     </div>
   );
