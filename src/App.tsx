@@ -22,12 +22,6 @@ function App() {
           <Route path="/history" element={<HistoryScreen />} />
         </Routes>
       </main>
-      
-      <footer className="w-full bg-white dark:bg-gray-900 py-4 border-t border-gray-200 dark:border-gray-800 text-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium tracking-wide">
-          Design by <span className="text-primary-600 font-bold">HoVietQuangHuy</span>, build by <span className="text-indigo-600 font-bold">AntiGravity</span>
-        </p>
-      </footer>
     </div>
     </Router>
   )

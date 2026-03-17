@@ -8,9 +8,14 @@ export const Navbar = () => {
   return (
     <nav className="w-full bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
       <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent flex items-center gap-2">
-          QuizApp
-        </Link>
+        <div className="flex flex-col justify-center">
+          <Link to="/" className="text-xl font-bold bg-gradient-to-r from-primary-600 to-indigo-600 bg-clip-text text-transparent flex items-center gap-2 leading-none">
+            QuizApp
+          </Link>
+          <span className="text-[9px] sm:text-[10px] text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-wider font-semibold">
+            By HoVietQuangHuy & AntiGravity
+          </span>
+        </div>
         <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-base font-medium">
           <Link to="/" className={getNavClass('/')}>
             <BookOpen className="w-5 h-5 sm:w-5 sm:h-5" />
