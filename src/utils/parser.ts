@@ -48,10 +48,40 @@ export const parseDeck = (jsonData: any): Deck => {
 };
 
 export const parseTextToDeck = (text: string, title: string): Deck => {
-  const lines = text.split('\n').filter(line => line.trim() !== '');
-  if (lines.length === 0) throw new Error('Văn bản trống');
+  const normalizedText = text.replace(/\r\n/g, '\n').trim();
+  if (!normalizedText) throw new Error('Văn bản trống');
 
-  const parsedQuestions: Question[] = lines.map((line, index) => {
+  let blocks: string[] = [];
+  const hasDoubleNewline = /\n\s*\n/.test(normalizedText);
+
+  if (hasDoubleNewline) {
+    // Tách theo dòng ngăn cách kép (đoạn trắng giữa do user enter 2 lần)
+    blocks = normalizedText.split(/\n\s*\n/).filter(b => b.trim() !== '');
+    // Nén cục văn bản có mang xuống dòng về 1 dòng dài
+    blocks = blocks.map(b => b.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim());
+  } else {
+    const lines = normalizedText.split('\n').filter(l => l.trim() !== '');
+    const hasQuestionNumbers = lines.some(l => /^(Câu\s*\d+|\d+[\.\:\-\)])/i.test(l.trim()));
+    
+    // Nếu phát hiện có số thứ tự câu, tiến hành gộp từng block bằng số đầu dòng.
+    if (hasQuestionNumbers) {
+      let currentBlock = "";
+      lines.forEach(line => {
+        if (/^(Câu\s*\d+|\d+[\.\:\-\)])/i.test(line.trim())) {
+          if (currentBlock) blocks.push(currentBlock.trim());
+          currentBlock = line.trim();
+        } else {
+          currentBlock += " " + line.trim();
+        }
+      });
+      if (currentBlock) blocks.push(currentBlock.trim());
+    } else {
+      // Nếu copy phẳng quá cộc lốc, trả về việc mỗi dòng là 1 câu
+      blocks = lines;
+    }
+  }
+
+  const parsedQuestions: Question[] = blocks.map((line, index) => {
     const aIdx = line.indexOf('A.');
     if (aIdx === -1) throw new Error(`Dòng ${index + 1} không thấy đáp án "A." (Vui lòng tuân thủ định dạng A. B. C.)`);
     

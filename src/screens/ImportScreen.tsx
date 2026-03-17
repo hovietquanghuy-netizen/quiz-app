@@ -111,7 +111,10 @@ export const ImportScreen = () => {
                     placeholder="Cấu trúc hóa học của thuốc tê gồm những thành phần nào? A. Nhân thơm, nhóm amin và nhóm trung gian (Correct). B. Nhân thơm và nhóm acid. C. Nhóm amin và chuỗi peptide. D. Nhóm este và nhóm amid."
                     className="w-full h-48 p-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none resize-none"
                  />
-                 <p className="text-xs text-gray-500 mt-2">Định dạng chuẩn: Nội dung câu hỏi... A. Đáp án 1 B. Đáp án 2 (Correct) C. Đáp án 3 D. Đáp án 4</p>
+                 <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 leading-relaxed">
+                   <strong>Định dạng chuẩn:</strong> Nội dung câu hỏi... A. Đáp án 1 B. Đáp án 2 (Correct) C. Đáp án 3 D. Đáp án 4 <br/>
+                   <span className="text-primary-600 dark:text-primary-400 font-medium">💡 Mẹo xịn:</span> Bạn có thể copy ném vào thoải mái những câu hỏi chia rớt dòng từng đáp án, AI Parser của hệ thống sẽ **tự động phân tích và gộp chụm** chúng lại mà không báo lỗi!
+                 </p>
                </div>
                <button
                   onClick={handleTextImport}
