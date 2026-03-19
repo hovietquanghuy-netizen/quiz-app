@@ -60,7 +60,7 @@ export const QuestionCard = ({
               <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-start gap-4">
                   <span className={`flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold flex-shrink-0 ${selectedAnswer === idx ? 'bg-primary-600 text-white dark:bg-primary-500' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
-                    {opt.label}
+                    {String.fromCharCode(65 + idx)}
                   </span>
                   <span className="mt-1 leading-normal">{opt.text}</span>
                 </div>
