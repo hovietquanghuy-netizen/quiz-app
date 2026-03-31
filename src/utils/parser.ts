@@ -61,7 +61,7 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
       const parts = normalizedText.split(questionPattern);
       let currentBlock = parts[0].trim();
       // Nếu phần đầu tiên chứa đáp án, thì giữ lại
-      if (currentBlock && /(?:^|\s|\n)[A-H][\.\)](?:\s+|$)/i.test(currentBlock)) {
+      if (currentBlock && /(?:^|\s|\n)[A-H][\.\)]/i.test(currentBlock)) {
           blocks.push(currentBlock);
       }
       for (let i = 1; i < parts.length; i += 2) {
@@ -77,8 +77,8 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
       const lines = normalizedText.split('\n').map(l => l.trim()).filter(l => l !== '');
       let currentBlock = "";
       for (const line of lines) {
-          const isOptionLine = /^[A-H][.\)]\s/i.test(line);
-          const hasOptionB = /(?:^|\s|\n)[B-H][\.\)](?:\s+|$)/i.test(currentBlock);
+          const isOptionLine = /^[A-H][.\)]/i.test(line);
+          const hasOptionB = /(?:^|\s|\n)[B-H][\.\)]/i.test(currentBlock);
           
           if (!isOptionLine && currentBlock && hasOptionB && line.length > 5) {
               // Sang câu mới nếu dòng này không giống 1 lựa chọn và mảng câu cũ đã ít nhất có B trở đi.
@@ -98,8 +98,9 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
     // Ép cục text về 1 dòng dài dồi dào khoảng trắng chuẩn
     let processedBlock = block.replace(/\n/g, '  ').replace(/\s+/g, ' ');
     
-    // Tìm vị trí các đáp án (ví dụ A. B. C. hoặc A) B) C) )
-    const optionFormatRegex = /(?:^|\s)([A-H])[\.\)](?:\s+|$)/gi;
+    // Tìm vị trí các đáp án (ví dụ A. B. C. hoặc A) B) C) ) 
+    // FIXED: Bỏ (?:\s+|$) ở cuối để hỗ trợ A.2% hoặc A.Phía trước, B.Benzocaine...
+    const optionFormatRegex = /(?:^|\s)([A-H])[\.\)]/gi;
     
     const matches = [...processedBlock.matchAll(optionFormatRegex)];
     let optIndices: Record<string, { start: number, length: number }> = {};
