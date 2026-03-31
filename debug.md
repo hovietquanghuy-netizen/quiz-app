@@ -13,3 +13,16 @@
   4. Hỗ trợ bắt marker đáp án đúng đa dạng: `(đúng)`, `(x)`, `[x]`, hay đánh dấu *\**. Nếu không có marker đúng do copy paste vỡ, thuật toán mặc định lấy A là đáp án đúng thay vì ném lỗi `throw new Error` khiến dữ liệu rụng.
   5. Đã nâng cấp (hot-fix) Regex loại bỏ ràng buộc phải có CÁCH khoảng trắng `(?:\s+|$)` ngay sau chữ `A. ` (hoặc `B)`). Giờ đây nó có thể bắt gọn cả các trường hợp dính liền như `A.2%` hay `B.Benzocaine`.
   5. Cập nhật helper description trong file `ImportScreen.tsx` để user hiểu về rule mới.
+
+## Date: 2026-03-31 (Lần 2)
+- **Issue**:
+  1. Khi parse text, các chữ chứa kí tự `v`, `x` đứng độc lập (như "vài", "xem") bị cắt mất chữ thành "ài", "em".
+  2. Khi bật tính năng xáo trộn (shuffle) đáp án, các câu hỏi chứa đáp án liên kết hoặc chốt vị trí (như "A và C đúng", "Tất cả đều đúng") bị rối loạn làm sai logic nguyên gốc.
+- **Nguyên nhân**:
+  1. Trong `src/utils/parser.ts`, Regex match marker đáp án đúng có sử dụng `?` cho kí tự ngoặc: `/\(?(correct|đáp án|đúng|v|x|_)\)?/gi`. Do dấu ngoặc không bắt buộc, Regex âm thầm `replace` tất cả các chữ `v` và `x` trên toàn bộ văn bản của lựa chọn thành rỗng.
+  2. Hàm trộn đáp án ở `src/store/sessionStore.ts` chạy càn quét tất cả mảng `options` khi `config.shuffleOptions` được bật, bỏ qua ngữ nghĩa của từng option.
+- **Phương án Fix (Đã xác minh)**:
+  1. Loại bỏ các dấu `?` trong Regex của hàm `parseTextToDeck`: `/\((correct|đáp án|đúng|v|x|_)\)/gi` và `\[(correct|đáp án|đúng|v|x|_)\]/gi`. Yêu cầu bắt khớp chính xác cả cụm bao gồm dấu ngoặc để tránh false match trên văn bản bình thường.
+  2. Bổ sung Regex logic trong `useSessionStore` chặn xáo trộn tuỳ chọn (bypass `shuffleOptions`) ở các câu hỏi cụ thể nếu mảng options chứa:
+     - Các quy chiếu cụ thể: `\b([a-d])\s*(và|hoặc|hay|,)\s*([a-d])\b/i` (VD: a và c, A hoặc B)
+     - Cụm từ meta: `/(tất cả|cả (hai|ba|2|...|a|b...)|đáp án|phương án|câu (trên|dưới|khác|a|b...))/i` (VD: tất cả đều đúng, đáp án trên).

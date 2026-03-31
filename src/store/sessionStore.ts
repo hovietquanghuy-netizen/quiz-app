@@ -52,6 +52,19 @@ export const useSessionStore = create<SessionState>()(
 
         if (config.shuffleOptions) {
           qsToUse = qsToUse.map(q => {
+             // Kiểm tra xem câu hỏi có chứa đáp án mang tính chất "giữ vị trí" không
+             // Tránh đảo lộn "A và C đúng", "Tất cả đều sai", "Đáp án trên" v.v.
+             const hasFixedOption = q.options.some(opt => {
+                 const t = opt.text.toLowerCase();
+                 const hasReference = /\b([a-d])\s*(và|hoặc|hay|,)\s*([a-d])\b/.test(t);
+                 const hasKeywords = /(tất cả|cả (hai|ba|2|3|a|b|c|d)\b|đáp án|phương án|câu (trên|dưới|khác|a|b|c|d)\b|ý (trên|dưới|khác|a|b|c|d)\b)/.test(t);
+                 return hasReference || hasKeywords;
+             });
+
+             if (hasFixedOption) {
+                 return q; // Giữ nguyên vị trí các lựa chọn
+             }
+
              const originalCorrect = q.options[q.correctIndex];
              const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
              

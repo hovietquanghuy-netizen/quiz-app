@@ -150,7 +150,7 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
        // Bắt cụm từ đánh dấu đáp án đúng phổ biến từ word
        if (/\((correct|đáp án|đúng|v|x|_)\)/i.test(opt) || /\[(correct|đáp án|đúng|v|x|_)\]/i.test(opt)) {
           correctIndex = i;
-          return opt.replace(/\(?(correct|đáp án|đúng|v|x|_)\)?/gi, '').replace(/\[?(correct|đáp án|đúng|v|x|_)\]?/gi, '').trim();
+          return opt.replace(/\((correct|đáp án|đúng|v|x|_)\)/gi, '').replace(/\[(correct|đáp án|đúng|v|x|_)\]/gi, '').trim();
        }
        if (/\*$/.test(opt.trim()) || /^\*/.test(opt.trim())) {
            correctIndex = i;

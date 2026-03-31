@@ -14,6 +14,8 @@ Client-only quiz/exam application. Không server, không database. Toàn bộ da
 - [x] Cài đặt trạng thái thông minh với Zustand Auto-Persist (resumable session).
 - [x] Hoàn thiện giao diện hiện đại (darkmode, motion) cho 5 Screens.
 - [x] Build local thử nghiệm thành công 100% (Khung chuẩn production).
+- [x] Fix lỗi text importer sai regex với chữ "v", "x".
+- [x] Tối ưu hóa tính năng shuffle: tránh random câu hỏi chứa đáp án liên kết ("A và C").
 
 ## 3. Future Plan
 - User chạy lệnh test (`npm run dev`) trên localhost để trực tiếp cảm nhận độ hoàn thiện.
