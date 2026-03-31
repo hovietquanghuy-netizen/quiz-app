@@ -112,8 +112,8 @@ export const ImportScreen = () => {
                     className="w-full h-48 p-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none resize-none"
                  />
                  <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 leading-relaxed">
-                   <strong>Định dạng chuẩn:</strong> Nội dung câu hỏi... A. Đáp án 1 B. Đáp án 2 (Correct) C. Đáp án 3 D. Đáp án 4 <br/>
-                   <span className="text-primary-600 dark:text-primary-400 font-medium">💡 Mẹo xịn:</span> Bạn có thể copy ném vào thoải mái những câu hỏi chia rớt dòng từng đáp án, AI Parser của hệ thống sẽ **tự động phân tích và gộp chụm** chúng lại mà không báo lỗi!
+                   <strong>Định dạng chuẩn:</strong> Nội dung câu hỏi... A. Đáp án 1 B. Đáp án 2 (correct) C. Đáp án 3 D. Đáp án 4 <br/>
+                   <span className="text-primary-600 dark:text-primary-400 font-medium">💡 Tích hợp Smart AI Parser:</span> Kể từ phiên bản mới, hệ thống auto-detect hầu hết mọi định dạng copy/paste vỡ cấu trúc từ Word! Auto chụm đoạn văn, nhận diện <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">A)</code> <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">a.</code>, và tự bắt key đánh dấu đáp án đúng bằng <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">(đúng)</code>, <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">[x]</code>, hay <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">*</code>. Nếu Word bị mất highlight, AI tự động chọn lại đáp án A để tránh vứt bỏ câu hỏi của bạn!
                  </p>
                </div>
                <button

@@ -48,77 +48,123 @@ export const parseDeck = (jsonData: any): Deck => {
 };
 
 export const parseTextToDeck = (text: string, title: string): Deck => {
-  const normalizedText = text.replace(/\r\n/g, '\n').trim();
+  // Chuẩn hoá khoảng trắng thừa, giữ lại xuống dòng, loại bỏ ký tự rỗng của Word
+  const normalizedText = text.replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\u00A0/g, ' ').trim();
   if (!normalizedText) throw new Error('Văn bản trống');
 
   let blocks: string[] = [];
-  const hasDoubleNewline = /\n\s*\n/.test(normalizedText);
-
-  if (hasDoubleNewline) {
-    // Tách theo dòng ngăn cách kép (đoạn trắng giữa do user enter 2 lần)
-    blocks = normalizedText.split(/\n\s*\n/).filter(b => b.trim() !== '');
-    // Nén cục văn bản có mang xuống dòng về 1 dòng dài
-    blocks = blocks.map(b => b.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim());
+  
+  // 1. Phân tách câu hỏi cực kỳ ưu tiên các keyword bắt đầu câu
+  const questionPattern = /(?:^|\n)(Câu\s*\d+[\.\:\-\)]?\s*|Bài\s*\d+[\.\:\-\)]?\s*|\d+[\.\:\-\)]\s+)/i;
+  
+  if (questionPattern.test(normalizedText)) {
+      const parts = normalizedText.split(questionPattern);
+      let currentBlock = parts[0].trim();
+      // Nếu phần đầu tiên chứa đáp án, thì giữ lại
+      if (currentBlock && /(?:^|\s|\n)[A-H][\.\)](?:\s+|$)/i.test(currentBlock)) {
+          blocks.push(currentBlock);
+      }
+      for (let i = 1; i < parts.length; i += 2) {
+          const prefix = parts[i];
+          const content = parts[i+1] || "";
+          blocks.push((prefix + content).trim());
+      }
+  } else if (/\n\s*\n/.test(normalizedText)) {
+      // Nếu phân tách rõ ràng bằng dòng trống kép
+      blocks = normalizedText.split(/\n\s*\n/).filter(b => b.trim() !== '');
   } else {
-    const lines = normalizedText.split('\n').filter(l => l.trim() !== '');
-    const hasQuestionNumbers = lines.some(l => /^(Câu\s*\d+|\d+[\.\:\-\)])/i.test(l.trim()));
-    
-    // Nếu phát hiện có số thứ tự câu, tiến hành gộp từng block bằng số đầu dòng.
-    if (hasQuestionNumbers) {
+      // Trường hợp vỡ format hoàn toàn (không có Câu 1, không có dòng trắng kép)
+      const lines = normalizedText.split('\n').map(l => l.trim()).filter(l => l !== '');
       let currentBlock = "";
-      lines.forEach(line => {
-        if (/^(Câu\s*\d+|\d+[\.\:\-\)])/i.test(line.trim())) {
-          if (currentBlock) blocks.push(currentBlock.trim());
-          currentBlock = line.trim();
-        } else {
-          currentBlock += " " + line.trim();
-        }
-      });
+      for (const line of lines) {
+          const isOptionLine = /^[A-H][.\)]\s/i.test(line);
+          const hasOptionB = /(?:^|\s|\n)[B-H][\.\)](?:\s+|$)/i.test(currentBlock);
+          
+          if (!isOptionLine && currentBlock && hasOptionB && line.length > 5) {
+              // Sang câu mới nếu dòng này không giống 1 lựa chọn và mảng câu cũ đã ít nhất có B trở đi.
+              blocks.push(currentBlock.trim());
+              currentBlock = line;
+          } else {
+              currentBlock += (currentBlock ? "\n" : "") + line;
+          }
+      }
       if (currentBlock) blocks.push(currentBlock.trim());
-    } else {
-      // Nếu copy phẳng quá cộc lốc, trả về việc mỗi dòng là 1 câu
-      blocks = lines;
-    }
   }
 
-  const parsedQuestions: Question[] = blocks.map((line, index) => {
-    const aIdx = line.indexOf('A.');
-    if (aIdx === -1) throw new Error(`Dòng ${index + 1} không thấy đáp án "A." (Vui lòng tuân thủ định dạng A. B. C.)`);
-    
-    // Tìm vị trí các đáp án
-    const bIdx = line.indexOf('B.', aIdx);
-    const cIdx = line.indexOf('C.', bIdx !== -1 ? bIdx : aIdx);
-    const dIdx = line.indexOf('D.', cIdx !== -1 ? cIdx : (bIdx !== -1 ? bIdx : aIdx));
+  const parsedQuestions: Question[] = [];
+  let errorMessages: string[] = [];
 
-    const qText = line.substring(0, aIdx).trim();
+  blocks.forEach((block, index) => {
+    // Ép cục text về 1 dòng dài dồi dào khoảng trắng chuẩn
+    let processedBlock = block.replace(/\n/g, '  ').replace(/\s+/g, ' ');
     
-    const optA = line.substring(aIdx + 2, bIdx !== -1 ? bIdx : line.length).trim();
-    const optB = bIdx !== -1 ? line.substring(bIdx + 2, cIdx !== -1 ? cIdx : line.length).trim() : null;
-    const optC = cIdx !== -1 ? line.substring(cIdx + 2, dIdx !== -1 ? dIdx : line.length).trim() : null;
-    const optD = dIdx !== -1 ? line.substring(dIdx + 2, line.length).trim() : null;
-
-    const rawOptions = [optA, optB, optC, optD].filter(Boolean) as string[];
+    // Tìm vị trí các đáp án (ví dụ A. B. C. hoặc A) B) C) )
+    const optionFormatRegex = /(?:^|\s)([A-H])[\.\)](?:\s+|$)/gi;
+    
+    const matches = [...processedBlock.matchAll(optionFormatRegex)];
+    let optIndices: Record<string, { start: number, length: number }> = {};
+    
+    // Đè ghi đè ở cuối: Để chống lỗi "Vitamin A. " (sẽ match A lần đầu), ưu tiên lấy pattern A cuối cùng
+    for (const match of matches) {
+       const letter = match[1].toUpperCase();
+       optIndices[letter] = {
+           start: match.index !== undefined ? match.index + (match[0].startsWith(' ') ? 1 : 0) : 0,
+           length: match[0].trim().length
+       };
+    }
+    
+    if (!optIndices['A']) {
+         errorMessages.push(`Bỏ qua câu ${index + 1} vì không tìm thấy đáp án phân cách A.`);
+         return; 
+    }
+    
+    const qText = processedBlock.substring(0, optIndices['A'].start).trim();
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const rawOptions = [];
+    
+    for (let i = 0; i < letters.length; i++) {
+        const currentLetter = letters[i];
+        if (optIndices[currentLetter]) {
+            const startStr = optIndices[currentLetter].start + optIndices[currentLetter].length;
+            
+            let endStr = processedBlock.length;
+            for (let j = i + 1; j < letters.length; j++) {
+                if (optIndices[letters[j]]) {
+                    endStr = optIndices[letters[j]].start;
+                    if (processedBlock[endStr - 1] === ' ') endStr--;
+                    break;
+                }
+            }
+            rawOptions.push(processedBlock.substring(startStr, endStr).trim());
+        }
+    }
 
     if (rawOptions.length < 2) {
-       throw new Error(`Dòng ${index + 1} bị lỗi format (Phải có ít nhất 2 đáp án A. và B.)`);
+       errorMessages.push(`Bỏ qua câu bị thiếu đáp án: "${qText.substring(0, 30)}..."`);
+       return;
     }
 
     let correctIndex = -1;
     const finalOptions = rawOptions.map((opt, i) => {
-      // Check for (Correct) or (correct)
-      if (opt.toLowerCase().includes('(correct)')) {
-        correctIndex = i;
-        return opt.replace(/\(?correct\)?/gi, '').trim();
-      }
-      return opt;
+       // Bắt cụm từ đánh dấu đáp án đúng phổ biến từ word
+       if (/\((correct|đáp án|đúng|v|x|_)\)/i.test(opt) || /\[(correct|đáp án|đúng|v|x|_)\]/i.test(opt)) {
+          correctIndex = i;
+          return opt.replace(/\(?(correct|đáp án|đúng|v|x|_)\)?/gi, '').replace(/\[?(correct|đáp án|đúng|v|x|_)\]?/gi, '').trim();
+       }
+       if (/\*$/.test(opt.trim()) || /^\*/.test(opt.trim())) {
+           correctIndex = i;
+           return opt.trim().replace(/^\*/, '').replace(/\*$/, '').trim();
+       }
+       return opt.trim();
     });
 
     if (correctIndex === -1) {
-      throw new Error(`Dòng ${index + 1} chưa đánh dấu "(Correct)" ở bất kì đáp án nào.`);
+      // Word mất highlight -> AI parser mặc định đáp án đầu tiên thay vì bỏ rơi
+      correctIndex = 0; 
     }
 
     const A_CHAR_CODE = 65;
-    return {
+    parsedQuestions.push({
       id: uuidv4(),
       text: qText,
       options: finalOptions.map((optText, i) => ({
@@ -126,12 +172,16 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
         text: optText
       })),
       correctIndex
-    };
+    });
   });
+
+  if (parsedQuestions.length === 0) {
+      throw new Error(errorMessages.join('\n') || 'Hoàn toàn không tìm thấy câu hỏi hợp lệ. Đảm bảo bạn có định dạng A. B. C. D.');
+  }
 
   return {
     id: uuidv4(),
-    name: title || 'Bài thi từ văn bản',
+    name: title || 'Bài thi tổng hợp',
     questions: parsedQuestions,
     createdAt: Date.now()
   };
