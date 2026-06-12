@@ -47,6 +47,28 @@ export const parseDeck = (jsonData: any): Deck => {
   };
 };
 
+// Trích xuất khối JSON từ output của AI (NotebookLM/ChatGPT thường bọc trong ```json``` hoặc thêm lời dẫn)
+export const extractJsonFromText = (text: string): unknown | null => {
+  const candidates: string[] = [];
+
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenceMatch) candidates.push(fenceMatch[1]);
+
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start !== -1 && end > start) candidates.push(text.slice(start, end + 1));
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch {
+      // Thử ứng viên tiếp theo
+    }
+  }
+  return null;
+};
+
 export const parseTextToDeck = (text: string, title: string): Deck => {
   // Chuẩn hoá khoảng trắng thừa, giữ lại xuống dòng, loại bỏ ký tự rỗng của Word
   const normalizedText = text.replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\u00A0/g, ' ').trim();

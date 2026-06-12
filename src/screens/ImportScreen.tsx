@@ -1,10 +1,35 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDeckStore } from '../store';
-import { parseDeck, parseTextToDeck } from '../utils/parser';
+import { parseDeck, parseTextToDeck, extractJsonFromText } from '../utils/parser';
 import { importJson } from '../utils/io';
 import { MotionWrapper } from '../components/MotionWrapper';
-import { UploadCloud, CheckCircle2, AlertCircle, FileText, Code } from 'lucide-react';
+import { UploadCloud, CheckCircle2, AlertCircle, FileText, Code, Sparkles, Copy, Check } from 'lucide-react';
+
+const buildAiPrompt = (count: number) => `Bạn là trợ lý tạo đề thi trắc nghiệm. Dựa CHÍNH XÁC trên nội dung các nguồn tài liệu trong notebook này, hãy tạo ${count} câu hỏi trắc nghiệm.
+
+YÊU CẦU ĐỊNH DẠNG (bắt buộc tuân thủ tuyệt đối):
+- Chỉ trả lời bằng MỘT khối JSON duy nhất, không thêm lời dẫn, giải thích hay chữ nào khác ngoài JSON.
+- Cấu trúc JSON như sau:
+{
+  "name": "Tên bài thi (đặt ngắn gọn theo chủ đề tài liệu)",
+  "questions": [
+    {
+      "text": "Nội dung câu hỏi?",
+      "options": ["Đáp án thứ nhất", "Đáp án thứ hai", "Đáp án thứ ba", "Đáp án thứ tư"],
+      "correctIndex": 2
+    }
+  ]
+}
+
+QUY TẮC NỘI DUNG:
+- "correctIndex" là vị trí của đáp án đúng trong mảng "options", đếm từ 0 (0 = đáp án đầu tiên).
+- Mỗi câu có đúng 4 lựa chọn, chỉ một lựa chọn đúng.
+- KHÔNG đánh số "Câu 1:", KHÔNG thêm tiền tố "A.", "B." vào đầu đáp án.
+- Phân bố vị trí đáp án đúng ngẫu nhiên giữa các câu (không dồn vào một vị trí).
+- Các đáp án nhiễu phải hợp lý, cùng chủ đề, không quá dễ loại trừ.
+- Độ khó trải đều từ nhận biết, thông hiểu đến vận dụng.
+- Câu hỏi phải bám sát tài liệu nguồn, không bịa thông tin ngoài tài liệu.`;
 
 export const ImportScreen = () => {
   const navigate = useNavigate();
@@ -18,8 +43,21 @@ export const ImportScreen = () => {
   
   const [rawText, setRawText] = useState('');
   const [deckName, setDeckName] = useState('');
-  
+
+  const [aiQuestionCount, setAiQuestionCount] = useState(20);
+  const [promptCopied, setPromptCopied] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCopyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(buildAiPrompt(aiQuestionCount));
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      setError('Không thể truy cập clipboard. Hãy copy thủ công từ hộp prompt.');
+    }
+  };
 
   const handleJsonUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,7 +93,17 @@ export const ImportScreen = () => {
     setSuccess(null);
     
     try {
-       const deck = parseTextToDeck(rawText, deckName.trim());
+       // Ưu tiên nhận diện JSON (kết quả trả về từ AI) trước khi rơi về parser văn bản
+       const maybeJson = extractJsonFromText(rawText) as { name?: unknown; questions?: unknown } | null;
+       let deck;
+       if (maybeJson && Array.isArray(maybeJson.questions)) {
+          const data = { ...maybeJson };
+          if (deckName.trim()) data.name = deckName.trim();
+          else if (!data.name) data.name = 'Bài thi từ AI';
+          deck = parseDeck(data);
+       } else {
+          deck = parseTextToDeck(rawText, deckName.trim());
+       }
        addDeck(deck);
        setSuccess(`Tạo thành công: "${deck.name}" (${deck.questions.length} câu)`);
        setTimeout(() => navigate('/'), 1500);
@@ -91,6 +139,38 @@ export const ImportScreen = () => {
           
           {activeTab === 'text' && (
              <div className="space-y-4">
+               {/* AI Prompt Helper */}
+               <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800/50 bg-gradient-to-br from-indigo-50 to-purple-50/50 dark:from-indigo-900/20 dark:to-purple-900/10 p-5">
+                  <div className="flex items-center gap-2 font-semibold text-indigo-700 dark:text-indigo-300 mb-3">
+                    <Sparkles className="w-5 h-5" />
+                    Tạo đề bằng AI (NotebookLM, ChatGPT, Gemini…)
+                  </div>
+                  <ol className="text-sm text-gray-600 dark:text-gray-300 space-y-1.5 mb-4 list-decimal list-inside">
+                    <li>Bấm <strong>Sao chép prompt mẫu</strong> bên dưới.</li>
+                    <li>Dán vào khung chat <strong>NotebookLM</strong> (notebook đã chứa bài giảng của bạn) và gửi.</li>
+                    <li>Copy toàn bộ câu trả lời của AI rồi dán vào ô nội dung phía dưới — hệ thống tự nhận diện JSON, kể cả khi AI thêm lời dẫn.</li>
+                  </ol>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Số câu hỏi:
+                      <input
+                        type="number"
+                        min="1"
+                        max="200"
+                        value={aiQuestionCount}
+                        onChange={(e) => setAiQuestionCount(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-20 p-2 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-center"
+                      />
+                    </label>
+                    <button
+                      onClick={handleCopyPrompt}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${promptCopied ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                    >
+                      {promptCopied ? <><Check className="w-4 h-4" /> Đã sao chép!</> : <><Copy className="w-4 h-4" /> Sao chép prompt mẫu</>}
+                    </button>
+                  </div>
+               </div>
+
                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tên bài thi (Không bắt buộc)</label>
                   <input
@@ -103,7 +183,7 @@ export const ImportScreen = () => {
                </div>
                <div>
                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                   Nội dung trắc nghiệm (Mỗi câu 1 dòng)
+                   Nội dung trắc nghiệm (dán kết quả JSON từ AI hoặc văn bản dạng A. B. C. D.)
                  </label>
                  <textarea
                     value={rawText}
@@ -113,6 +193,7 @@ export const ImportScreen = () => {
                  />
                  <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 leading-relaxed">
                    <strong>Định dạng chuẩn:</strong> Nội dung câu hỏi... A. Đáp án 1 B. Đáp án 2 (correct) C. Đáp án 3 D. Đáp án 4 <br/>
+                   <span className="text-indigo-600 dark:text-indigo-400 font-medium">🤖 Hỗ trợ dán JSON từ AI:</span> Nếu bạn dán kết quả JSON do NotebookLM/ChatGPT tạo ra (theo prompt mẫu phía trên), hệ thống sẽ tự nhận diện và nhập chính xác 100% đáp án đúng — không cần đánh dấu (correct) thủ công. <br/>
                    <span className="text-primary-600 dark:text-primary-400 font-medium">💡 Tích hợp Smart AI Parser:</span> Kể từ phiên bản mới, hệ thống auto-detect hầu hết mọi định dạng copy/paste vỡ cấu trúc từ Word! Auto chụm đoạn văn, nhận diện <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">A)</code> <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">a.</code>, và tự bắt key đánh dấu đáp án đúng bằng <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">(đúng)</code>, <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">[x]</code>, hay <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">*</code>. Nếu Word bị mất highlight, AI tự động chọn lại đáp án A để tránh vứt bỏ câu hỏi của bạn!
                  </p>
                </div>
