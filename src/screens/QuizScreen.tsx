@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store';
 import { MotionWrapper } from '../components/MotionWrapper';
@@ -17,6 +17,13 @@ export const QuizScreen = () => {
     }
   }, [session.isConfigured, session.questions.length, navigate]);
 
+  const handleTimeUp = useCallback(() => {
+    session.finishSession();
+    alert('Đã hết thời gian làm bài!');
+    navigate(`/results/${session.deckId}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.deckId, session.finishSession, navigate]);
+
   if (!session.isConfigured || session.questions.length === 0) return null;
 
   const question = session.questions[currentIndex];
@@ -27,14 +34,19 @@ export const QuizScreen = () => {
   const handlePrev = () => !isFirst && setCurrentIndex(curr => curr - 1);
 
   const handleSubmit = () => {
-    if (window.confirm('Bạn có chắc chắn muốn nộp bài?')) {
+    const unanswered = session.answers.filter(a => a === null).length;
+    const flaggedCount = session.flagged.filter(Boolean).length;
+    let msg = 'Bạn có chắc chắn muốn nộp bài?';
+    if (unanswered > 0 || flaggedCount > 0) {
+      const parts = [];
+      if (unanswered > 0) parts.push(`${unanswered} câu chưa trả lời`);
+      if (flaggedCount > 0) parts.push(`${flaggedCount} câu đang gắn cờ`);
+      msg = `Bạn còn ${parts.join(' và ')}. Vẫn nộp bài chứ?`;
+    }
+    if (window.confirm(msg)) {
+      session.finishSession();
       navigate(`/results/${session.deckId}`);
     }
-  };
-
-  const handleTimeUp = () => {
-    alert('Đã hết thời gian làm bài!');
-    navigate(`/results/${session.deckId}`);
   };
 
   const renderNavDots = () => {
@@ -76,7 +88,7 @@ export const QuizScreen = () => {
           Huỷ thi
         </button>
         {session.timeLimit !== null && (
-          <Timer limitInSeconds={session.timeLimit} onTimeUp={handleTimeUp} />
+          <Timer startedAt={session.startedAt} limitInSeconds={session.timeLimit} onTimeUp={handleTimeUp} />
         )}
       </div>
 

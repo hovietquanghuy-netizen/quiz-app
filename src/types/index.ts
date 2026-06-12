@@ -18,6 +18,7 @@ export interface Session {
   answers: (number | null)[];
   flagged: boolean[];
   startedAt: number;
+  finishedAt: number | null;
   timeLimit: number | null;
   mode: 'exam' | 'review';
 }

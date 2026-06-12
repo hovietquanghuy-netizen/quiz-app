@@ -39,6 +39,7 @@ export const ImportScreen = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
   const [rawText, setRawText] = useState('');
@@ -65,6 +66,7 @@ export const ImportScreen = () => {
 
     setLoading(true);
     setError(null);
+    setWarning(null);
     setSuccess(null);
 
     try {
@@ -90,23 +92,32 @@ export const ImportScreen = () => {
     
     setLoading(true);
     setError(null);
+    setWarning(null);
     setSuccess(null);
-    
+
     try {
        // Ưu tiên nhận diện JSON (kết quả trả về từ AI) trước khi rơi về parser văn bản
        const maybeJson = extractJsonFromText(rawText) as { name?: unknown; questions?: unknown } | null;
        let deck;
+       let warnings: string[] = [];
        if (maybeJson && Array.isArray(maybeJson.questions)) {
           const data = { ...maybeJson };
           if (deckName.trim()) data.name = deckName.trim();
           else if (!data.name) data.name = 'Bài thi từ AI';
           deck = parseDeck(data);
        } else {
-          deck = parseTextToDeck(rawText, deckName.trim());
+          const result = parseTextToDeck(rawText, deckName.trim());
+          deck = result.deck;
+          warnings = result.warnings;
        }
        addDeck(deck);
        setSuccess(`Tạo thành công: "${deck.name}" (${deck.questions.length} câu)`);
-       setTimeout(() => navigate('/'), 1500);
+       if (warnings.length > 0) {
+          // Có cảnh báo: giữ người dùng lại để đọc, không tự chuyển trang
+          setWarning(warnings.join('\n'));
+       } else {
+          setTimeout(() => navigate('/'), 1500);
+       }
     } catch (err) {
        setError((err as Error).message);
     } finally {
@@ -122,13 +133,13 @@ export const ImportScreen = () => {
         {/* Tabs */}
         <div className="flex border-b border-gray-100 dark:border-gray-700 font-medium">
           <button 
-            onClick={() => { setActiveTab('text'); setError(null); }}
+            onClick={() => { setActiveTab('text'); setError(null); setWarning(null); }}
             className={`flex-1 py-4 flex items-center justify-center gap-2 ${activeTab === 'text' ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50/50 dark:bg-primary-900/20' : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
           >
             <FileText className="w-5 h-5" /> Copy & Paste chữ
           </button>
           <button 
-             onClick={() => { setActiveTab('json'); setError(null); }}
+             onClick={() => { setActiveTab('json'); setError(null); setWarning(null); }}
              className={`flex-1 py-4 flex items-center justify-center gap-2 ${activeTab === 'json' ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50/50 dark:bg-primary-900/20' : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
           >
             <Code className="w-5 h-5" /> Tải lên JSON
@@ -235,6 +246,16 @@ export const ImportScreen = () => {
             <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2 rounded-xl text-sm font-medium">
               <AlertCircle className="w-6 h-6 flex-shrink-0" />
               <span className="text-left leading-tight">{error}</span>
+            </div>
+          )}
+
+          {warning && (
+            <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 flex items-start gap-2 rounded-xl text-sm font-medium">
+              <AlertCircle className="w-6 h-6 flex-shrink-0" />
+              <div className="text-left leading-relaxed whitespace-pre-line">
+                {warning}
+                <button onClick={() => navigate('/')} className="block mt-2 underline font-bold">Đã hiểu, về kho bài thi →</button>
+              </div>
             </div>
           )}
 

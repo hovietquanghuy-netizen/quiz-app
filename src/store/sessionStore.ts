@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Session, Question } from '../types';
+import { shuffleArray } from '../utils/shuffle';
 
 interface SessionState extends Session {
   isConfigured: boolean;
+  resultSaved: boolean;
   shuffleSettings: {
     shuffleQuestions: boolean;
     shuffleOptions: boolean;
@@ -16,6 +18,8 @@ interface SessionState extends Session {
   ) => void;
   setAnswer: (index: number, answerIndex: number | null) => void;
   toggleFlag: (index: number) => void;
+  finishSession: () => void;
+  markResultSaved: () => void;
   clearSession: () => void;
 }
 
@@ -25,9 +29,11 @@ const initialState = {
   answers: [],
   flagged: [],
   startedAt: 0,
+  finishedAt: null,
   timeLimit: null,
   mode: 'review' as 'exam' | 'review',
   isConfigured: false,
+  resultSaved: false,
   shuffleSettings: {
     shuffleQuestions: false,
     shuffleOptions: false,
@@ -42,11 +48,11 @@ export const useSessionStore = create<SessionState>()(
         let qsToUse = [...questions];
         
         if (config.shuffleQuestions) {
-          qsToUse.sort(() => Math.random() - 0.5);
+          qsToUse = shuffleArray(qsToUse);
           // Tự động xóa Số thứ tự/chữ "Câu X:" ở đầu câu hỏi nếu đang xáo trộn
           qsToUse = qsToUse.map(q => ({
              ...q,
-             text: q.text.replace(/^(Câu\s*\d+[\.\:\-\)]\s*|\d+[\.\:\-\)]\s*)/i, '').trim()
+             text: q.text.replace(/^(Câu\s*\d+[.:\-)]\s*|\d+[.:\-)]\s*)/i, '').trim()
           }));
         }
 
@@ -65,12 +71,11 @@ export const useSessionStore = create<SessionState>()(
                  return q; // Giữ nguyên vị trí các lựa chọn
              }
 
-             const originalCorrect = q.options[q.correctIndex];
-             const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
-             
-             // Sau khi trộn mảng options, ta phải đi tìm lại index của đáp án đúng ban đầu
-             const newCorrectIndex = shuffledOptions.findIndex(o => o.text === originalCorrect.text);
-             
+             // Trộn theo index để không nhầm khi hai đáp án trùng nội dung
+             const order = shuffleArray(q.options.map((_, i) => i));
+             const shuffledOptions = order.map(i => q.options[i]);
+             const newCorrectIndex = order.indexOf(q.correctIndex);
+
              return {
                 ...q,
                 options: shuffledOptions,
@@ -85,9 +90,11 @@ export const useSessionStore = create<SessionState>()(
           answers: initialAnswers ? [...initialAnswers] : new Array(qsToUse.length).fill(null),
           flagged: new Array(qsToUse.length).fill(false),
           startedAt: Date.now(),
+          finishedAt: null,
           timeLimit: config.timeLimit || null,
           mode: config.mode,
           isConfigured: true,
+          resultSaved: false,
           shuffleSettings: {
             shuffleQuestions: config.shuffleQuestions,
             shuffleOptions: config.shuffleOptions
@@ -104,6 +111,9 @@ export const useSessionStore = create<SessionState>()(
         newFlagged[index] = !newFlagged[index];
         return { flagged: newFlagged };
       }),
+      // Chốt thời điểm nộp bài một lần duy nhất (idempotent, sống sót qua reload)
+      finishSession: () => set((state) => state.finishedAt ? {} : { finishedAt: Date.now() }),
+      markResultSaved: () => set({ resultSaved: true }),
       clearSession: () => set(initialState),
     }),
     {

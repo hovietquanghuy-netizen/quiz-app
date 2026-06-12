@@ -1,11 +1,27 @@
 import { useNavigate } from 'react-router-dom';
 import { useDeckStore } from '../store';
 import { MotionWrapper } from '../components/MotionWrapper';
-import { Trash2, PlusCircle, PlayCircle } from 'lucide-react';
+import { downloadJson } from '../utils/io';
+import type { Deck } from '../types';
+import { Trash2, PlusCircle, PlayCircle, Download } from 'lucide-react';
 
 export const DeckScreen = () => {
   const navigate = useNavigate();
   const { decks, removeDeck } = useDeckStore();
+
+  // Xuất theo đúng schema import được, để backup/chia sẻ rồi nhập lại qua tab JSON
+  const handleExportDeck = (deck: Deck) => {
+    const exportData = {
+      name: deck.name,
+      questions: deck.questions.map(q => ({
+        text: q.text,
+        options: q.options.map(o => o.text),
+        correctIndex: q.correctIndex
+      }))
+    };
+    const safeName = deck.name.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 50) || 'bai_thi';
+    downloadJson(exportData, `${safeName}.json`);
+  };
 
   return (
     <MotionWrapper>
@@ -51,6 +67,13 @@ export const DeckScreen = () => {
                 >
                   <PlayCircle className="w-5 h-5" />
                   Làm bài
+                </button>
+                <button
+                  onClick={() => handleExportDeck(deck)}
+                  title="Xuất file JSON để backup/chia sẻ"
+                  className="p-3 text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors"
+                >
+                  <Download className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => {

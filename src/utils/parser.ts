@@ -1,20 +1,24 @@
 import type { Question, Deck } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-export const parseDeck = (jsonData: any): Deck => {
+export const parseDeck = (jsonData: unknown): Deck => {
   if (!jsonData || typeof jsonData !== 'object') {
     throw new Error('Định dạng JSON không hợp lệ');
   }
 
-  if (!jsonData.name || typeof jsonData.name !== 'string') {
+  const data = jsonData as { name?: unknown; questions?: unknown };
+
+  if (!data.name || typeof data.name !== 'string') {
     throw new Error('Bài thi (Deck) cần phải có thuộc tính "name"');
   }
 
-  if (!Array.isArray(jsonData.questions)) {
+  if (!Array.isArray(data.questions)) {
     throw new Error('Bài thi cần phải có một mảng "questions"');
   }
 
-  const parsedQuestions: Question[] = jsonData.questions.map((q: any, index: number) => {
+  const parsedQuestions: Question[] = data.questions.map((rawQ: unknown, index: number) => {
+    const q = rawQ as { text?: unknown; options?: unknown; correctIndex?: unknown };
+
     if (!q.text || typeof q.text !== 'string') {
       throw new Error(`Câu hỏi ở vị trí ${index + 1} thiếu nội dung "text"`);
     }
@@ -31,7 +35,7 @@ export const parseDeck = (jsonData: any): Deck => {
     return {
       id: uuidv4(),
       text: q.text,
-      options: q.options.map((opt: any, optIdx: number) => ({
+      options: q.options.map((opt: unknown, optIdx: number) => ({
         label: String.fromCharCode(A_CHAR_CODE + optIdx), // Tạo label dạng A, B, C, D...
         text: typeof opt === 'string' ? opt : String(opt)
       })),
@@ -41,7 +45,7 @@ export const parseDeck = (jsonData: any): Deck => {
 
   return {
     id: uuidv4(),
-    name: jsonData.name,
+    name: data.name,
     questions: parsedQuestions,
     createdAt: Date.now()
   };
@@ -69,21 +73,26 @@ export const extractJsonFromText = (text: string): unknown | null => {
   return null;
 };
 
-export const parseTextToDeck = (text: string, title: string): Deck => {
+export interface TextParseResult {
+  deck: Deck;
+  warnings: string[];
+}
+
+export const parseTextToDeck = (text: string, title: string): TextParseResult => {
   // Chuẩn hoá khoảng trắng thừa, giữ lại xuống dòng, loại bỏ ký tự rỗng của Word
   const normalizedText = text.replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\u00A0/g, ' ').trim();
   if (!normalizedText) throw new Error('Văn bản trống');
 
   let blocks: string[] = [];
-  
+
   // 1. Phân tách câu hỏi cực kỳ ưu tiên các keyword bắt đầu câu
-  const questionPattern = /(?:^|\n)(Câu\s*\d+[\.\:\-\)]?\s*|Bài\s*\d+[\.\:\-\)]?\s*|\d+[\.\:\-\)]\s+)/i;
-  
+  const questionPattern = /(?:^|\n)(Câu\s*\d+[.:\-)]?\s*|Bài\s*\d+[.:\-)]?\s*|\d+[.:\-)]\s+)/i;
+
   if (questionPattern.test(normalizedText)) {
       const parts = normalizedText.split(questionPattern);
-      let currentBlock = parts[0].trim();
+      const currentBlock = parts[0].trim();
       // Nếu phần đầu tiên chứa đáp án, thì giữ lại
-      if (currentBlock && /(?:^|\s|\n)[A-H][\.\)]/i.test(currentBlock)) {
+      if (currentBlock && /(?:^|\s|\n)[A-H][.)]/i.test(currentBlock)) {
           blocks.push(currentBlock);
       }
       for (let i = 1; i < parts.length; i += 2) {
@@ -99,9 +108,9 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
       const lines = normalizedText.split('\n').map(l => l.trim()).filter(l => l !== '');
       let currentBlock = "";
       for (const line of lines) {
-          const isOptionLine = /^[A-H][.\)]/i.test(line);
-          const hasOptionB = /(?:^|\s|\n)[B-H][\.\)]/i.test(currentBlock);
-          
+          const isOptionLine = /^[A-H][.)]/i.test(line);
+          const hasOptionB = /(?:^|\s|\n)[B-H][.)]/i.test(currentBlock);
+
           if (!isOptionLine && currentBlock && hasOptionB && line.length > 5) {
               // Sang câu mới nếu dòng này không giống 1 lựa chọn và mảng câu cũ đã ít nhất có B trở đi.
               blocks.push(currentBlock.trim());
@@ -114,19 +123,20 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
   }
 
   const parsedQuestions: Question[] = [];
-  let errorMessages: string[] = [];
+  const errorMessages: string[] = [];
+  const defaultedQuestions: number[] = []; // Số thứ tự các câu bị gán mặc định đáp án A
 
   blocks.forEach((block, index) => {
     // Ép cục text về 1 dòng dài dồi dào khoảng trắng chuẩn
-    let processedBlock = block.replace(/\n/g, '  ').replace(/\s+/g, ' ');
-    
-    // Tìm vị trí các đáp án (ví dụ A. B. C. hoặc A) B) C) ) 
+    const processedBlock = block.replace(/\n/g, '  ').replace(/\s+/g, ' ');
+
+    // Tìm vị trí các đáp án (ví dụ A. B. C. hoặc A) B) C) )
     // FIXED: Bỏ (?:\s+|$) ở cuối để hỗ trợ A.2% hoặc A.Phía trước, B.Benzocaine...
-    const optionFormatRegex = /(?:^|\s)([A-H])[\.\)]/gi;
-    
+    const optionFormatRegex = /(?:^|\s)([A-H])[.)]/gi;
+
     const matches = [...processedBlock.matchAll(optionFormatRegex)];
-    let optIndices: Record<string, { start: number, length: number }> = {};
-    
+    const optIndices: Record<string, { start: number, length: number }> = {};
+
     // Đè ghi đè ở cuối: Để chống lỗi "Vitamin A. " (sẽ match A lần đầu), ưu tiên lấy pattern A cuối cùng
     for (const match of matches) {
        const letter = match[1].toUpperCase();
@@ -135,21 +145,21 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
            length: match[0].trim().length
        };
     }
-    
+
     if (!optIndices['A']) {
          errorMessages.push(`Bỏ qua câu ${index + 1} vì không tìm thấy đáp án phân cách A.`);
-         return; 
+         return;
     }
-    
+
     const qText = processedBlock.substring(0, optIndices['A'].start).trim();
     const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     const rawOptions = [];
-    
+
     for (let i = 0; i < letters.length; i++) {
         const currentLetter = letters[i];
         if (optIndices[currentLetter]) {
             const startStr = optIndices[currentLetter].start + optIndices[currentLetter].length;
-            
+
             let endStr = processedBlock.length;
             for (let j = i + 1; j < letters.length; j++) {
                 if (optIndices[letters[j]]) {
@@ -182,8 +192,9 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
     });
 
     if (correctIndex === -1) {
-      // Word mất highlight -> AI parser mặc định đáp án đầu tiên thay vì bỏ rơi
-      correctIndex = 0; 
+      // Không tìm thấy marker -> tạm gán đáp án A nhưng PHẢI cảnh báo người dùng kiểm tra lại
+      correctIndex = 0;
+      defaultedQuestions.push(parsedQuestions.length + 1);
     }
 
     const A_CHAR_CODE = 65;
@@ -202,10 +213,20 @@ export const parseTextToDeck = (text: string, title: string): Deck => {
       throw new Error(errorMessages.join('\n') || 'Hoàn toàn không tìm thấy câu hỏi hợp lệ. Đảm bảo bạn có định dạng A. B. C. D.');
   }
 
+  const warnings = [...errorMessages];
+  if (defaultedQuestions.length > 0) {
+      warnings.push(
+        `⚠️ ${defaultedQuestions.length} câu không tìm thấy đánh dấu đáp án đúng nên đã tạm gán đáp án A (câu số: ${defaultedQuestions.join(', ')}). Hãy kiểm tra lại trước khi ôn tập!`
+      );
+  }
+
   return {
-    id: uuidv4(),
-    name: title || 'Bài thi tổng hợp',
-    questions: parsedQuestions,
-    createdAt: Date.now()
+    deck: {
+      id: uuidv4(),
+      name: title || 'Bài thi tổng hợp',
+      questions: parsedQuestions,
+      createdAt: Date.now()
+    },
+    warnings
   };
 };
