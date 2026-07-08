@@ -1,6 +1,8 @@
 export interface Question {
   id: string;
   text: string;
+  /** Hình minh hoạ (data URI hoặc URL), hiển thị giữa đề bài và các lựa chọn */
+  image?: string;
   options: { label: string; text: string }[];
   correctIndex: number;
 }

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { X, ZoomIn } from 'lucide-react';
 import type { Question } from '../types';
 
 interface QuestionCardProps {
@@ -21,6 +23,18 @@ export const QuestionCard = ({
   isFlagged,
   onToggleFlag
 }: QuestionCardProps) => {
+  // Lightbox che toàn màn hình nên không thể chuyển câu khi đang mở — không cần reset theo câu hỏi
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxOpen]);
 
   const getOptionClass = (index: number) => {
     if (mode === 'review' && selectedAnswer !== null) {
@@ -49,6 +63,26 @@ export const QuestionCard = ({
         <h3 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-8 leading-relaxed">
           {question.text}
         </h3>
+
+        {question.image && (
+          <div className="mb-8 -mt-2">
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              className="group relative block mx-auto rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <img
+                src={question.image}
+                alt={`Hình minh hoạ câu ${currentIndex + 1}`}
+                className="max-h-80 max-w-full object-contain bg-white"
+                loading="lazy"
+              />
+              <span className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-medium opacity-80 group-hover:opacity-100 transition-opacity">
+                <ZoomIn className="w-3.5 h-3.5" /> Phóng to
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="space-y-3">
           {question.options.map((opt, idx) => (
@@ -95,6 +129,33 @@ export const QuestionCard = ({
            </div>
         )}
       </div>
+
+      {/* Lightbox phóng to hình minh hoạ */}
+      {lightboxOpen && question.image && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 overflow-auto"
+          onClick={() => { setLightboxOpen(false); setZoomed(false); }}
+        >
+          <button
+            type="button"
+            onClick={() => { setLightboxOpen(false); setZoomed(false); }}
+            className="fixed top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors"
+            aria-label="Đóng"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <div className="min-h-full min-w-full flex items-center justify-center p-4">
+            <img
+              src={question.image}
+              alt={`Hình minh hoạ câu ${currentIndex + 1}`}
+              onClick={(e) => { e.stopPropagation(); setZoomed(z => !z); }}
+              className={zoomed
+                ? 'max-w-none w-[1400px] cursor-zoom-out'
+                : 'max-w-full max-h-[92vh] object-contain cursor-zoom-in'}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

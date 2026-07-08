@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Session, Question } from '../types';
+import { idbStorage } from '../utils/idbStorage';
 
 interface SessionState extends Session {
   isConfigured: boolean;
@@ -107,8 +108,9 @@ export const useSessionStore = create<SessionState>()(
       clearSession: () => set(initialState),
     }),
     {
-      name: 'quiz-session-storage', // Lưu liên tục vào local storage giúp reload trang không bay mất bài
-      storage: createJSONStorage(() => localStorage),
+      name: 'quiz-session-storage', // Lưu liên tục giúp reload trang không bay mất bài
+      // Phiên thi chứa bản sao câu hỏi (kèm hình ảnh) nên cũng phải dùng IndexedDB
+      storage: createJSONStorage(() => idbStorage),
     }
   )
 );

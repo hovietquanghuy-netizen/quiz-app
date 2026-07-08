@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Deck } from '../types';
+import { idbStorage } from '../utils/idbStorage';
 
 interface DeckState {
   decks: Deck[];
@@ -19,6 +20,8 @@ export const useDeckStore = create<DeckState>()(
     }),
     {
       name: 'quiz-decks-storage',
+      // IndexedDB thay vì localStorage: deck có hình ảnh vượt quota ~5MB của localStorage
+      storage: createJSONStorage(() => idbStorage),
     }
   )
 );

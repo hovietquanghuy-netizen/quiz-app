@@ -27,13 +27,19 @@ export const parseDeck = (jsonData: any): Deck => {
       throw new Error(`Câu hỏi ở vị trí ${index + 1} có "correctIndex" không hợp lệ`);
     }
 
+    if (q.image !== undefined && typeof q.image !== 'string') {
+      throw new Error(`Câu hỏi ở vị trí ${index + 1} có "image" không hợp lệ (cần là chuỗi data URI hoặc URL)`);
+    }
+
     const A_CHAR_CODE = 65;
     return {
       id: uuidv4(),
       text: q.text,
+      ...(q.image ? { image: q.image } : {}),
       options: q.options.map((opt: any, optIdx: number) => ({
         label: String.fromCharCode(A_CHAR_CODE + optIdx), // Tạo label dạng A, B, C, D...
-        text: typeof opt === 'string' ? opt : String(opt)
+        // Chấp nhận cả chuỗi lẫn object {text} (deck export ra từ app)
+        text: typeof opt === 'string' ? opt : (opt && typeof opt.text === 'string' ? opt.text : String(opt))
       })),
       correctIndex: q.correctIndex
     };
@@ -49,7 +55,8 @@ export const parseDeck = (jsonData: any): Deck => {
 
 export const parseTextToDeck = (text: string, title: string): Deck => {
   // Chuẩn hoá khoảng trắng thừa, giữ lại xuống dòng, loại bỏ ký tự rỗng của Word
-  const normalizedText = text.replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\u00A0/g, ' ').trim();
+  // Quy đổi format đề thi dạng [<A>] về A. để dùng chung pipeline
+  const normalizedText = text.replace(/\[\s*<\s*([A-H])\s*>\s*\]/gi, '$1.').replace(/\r\n/g, '\n').replace(/\t/g, ' ').replace(/\u00A0/g, ' ').trim();
   if (!normalizedText) throw new Error('Văn bản trống');
 
   let blocks: string[] = [];
